@@ -73,6 +73,7 @@ int main (int argc, char **argv)
 		string host("");
 		size_t port(1704);
 		size_t latency(0);
+		size_t instance(1);
 		int processPriority(-3);
 
 		Switch helpSwitch("", "help", "produce help message");
@@ -83,6 +84,7 @@ int main (int argc, char **argv)
 		Value<string> soundcardValue("s", "soundcard", "index or name of the soundcard", "default", &soundcard);
 		Implicit<int> daemonOption("d", "daemon", "daemonize, optional process priority [-20..19]", -3, &processPriority);
 		Value<size_t> latencyValue("", "latency", "latency of the soundcard", 0, &latency);
+		Value<size_t> instanceValue("i", "instance", "instance id", 1, &instance);
 
 		OptionParser op("Allowed options");
 		op.add(helpSwitch)
@@ -92,7 +94,8 @@ int main (int argc, char **argv)
 		 .add(portValue)
 		 .add(soundcardValue)
 		 .add(daemonOption)
-		 .add(latencyValue);
+		 .add(latencyValue)
+		 .add(instanceValue);
 
 		try
 		{
@@ -144,7 +147,7 @@ int main (int argc, char **argv)
 		if (daemonOption.isSet())
 		{
 #ifdef HAS_DAEMON
-			daemonize("/var/run/snapclient.pid");
+			daemonize(("/var/run/snapclient." + std::to_string(instance) + ".pid").c_str());
 			if (processPriority < -20)
 				processPriority = -20;
 			else if (processPriority > 19)
@@ -192,7 +195,7 @@ int main (int argc, char **argv)
 		if (!g_terminated)
 		{
 			logO << "Latency: " << latency << "\n";
-			controller->start(pcmDevice, host, port, latency);
+			controller->start(pcmDevice, host, port, latency, instance);
 			while(!g_terminated)
 				usleep(100*1000);
 			controller->stop();

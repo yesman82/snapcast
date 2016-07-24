@@ -44,7 +44,7 @@ class Controller : public MessageReceiver
 {
 public:
 	Controller();
-	void start(const PcmDevice& pcmDevice, const std::string& host, size_t port, size_t latency);
+	void start(const PcmDevice& pcmDevice, const std::string& host, size_t port, size_t latency, size_t instance);
 	void stop();
 
 	/// Implementation of MessageReceiver.
@@ -63,6 +63,7 @@ private:
 	SampleFormat sampleFormat_;
 	PcmDevice pcmDevice_;
 	size_t latency_;
+	size_t instance_;
 	std::unique_ptr<ClientConnection> clientConnection_;
 	std::unique_ptr<Stream> stream_;
 	std::unique_ptr<Decoder> decoder_;

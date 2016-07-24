@@ -144,10 +144,11 @@ bool Controller::sendTimeSyncMessage(long after)
 }
 
 
-void Controller::start(const PcmDevice& pcmDevice, const std::string& host, size_t port, size_t latency)
+void Controller::start(const PcmDevice& pcmDevice, const std::string& host, size_t port, size_t latency, size_t instance)
 {
 	pcmDevice_ = pcmDevice;
 	latency_ = latency;
+	instance_ = instance;
 	clientConnection_.reset(new ClientConnection(this, host, port));
 	controllerThread_ = thread(&Controller::worker, this);
 }
@@ -172,7 +173,7 @@ void Controller::worker()
 		{
 			clientConnection_->start();
 
-			msg::Hello hello(clientConnection_->getMacAddress());
+			msg::Hello hello(clientConnection_->getMacAddress(), instance_);
 			clientConnection_->send(&hello);
 
 			msg::Time timeReq;
