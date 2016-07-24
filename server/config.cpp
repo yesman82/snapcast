@@ -89,22 +89,32 @@ void Config::save()
 }
 
 
-ClientInfoPtr Config::getClientInfo(const std::string& macAddress, bool add)
+ClientInfoPtr Config::getClientInfo(const std::string& macAddress, size_t instance) const
 {
 	if (macAddress.empty())
 		return nullptr;
 
 	for (auto client: clients)
 	{
-		if (client->host.mac == macAddress)
+		if ((client->host.mac == macAddress) && (client->config.instance == instance))
 			return client;
 	}
 
-	if (!add)
+	return nullptr;
+}
+
+
+ClientInfoPtr Config::addClientInfo(const std::string& macAddress, size_t instance)
+{
+	if (macAddress.empty())
 		return nullptr;
 
-	ClientInfoPtr client = make_shared<ClientInfo>(macAddress);
-	clients.push_back(client);
+	ClientInfoPtr client = getClientInfo(macAddress, instance);
+	if (!client)
+	{
+		client = make_shared<ClientInfo>(macAddress, instance);
+		clients.push_back(client);
+	}
 
 	return client;
 }

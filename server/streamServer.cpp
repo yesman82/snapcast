@@ -268,28 +268,29 @@ void StreamServer::onMessageReceived(StreamSession* connection, const msg::BaseM
 		connection->macAddress = helloMsg.getMacAddress();
 		logO << "Hello from " << connection->macAddress << ", host: " << helloMsg.getHostName() << ", v" << helloMsg.getVersion()
 			<< ", ClientName: " << helloMsg.getClientName() << ", OS: " << helloMsg.getOS() << ", Arch: " << helloMsg.getArch()
-			<< ", Protocol version: " << helloMsg.getProtocolVersion() << "\n";
+			<< ", Instance: " << helloMsg.getInstance() << ", Protocol version: " << helloMsg.getProtocolVersion() << "\n";
 
 		logD << "request kServerSettings: " << connection->macAddress << "\n";
 //		std::lock_guard<std::mutex> mlock(mutex_);
-		ClientInfoPtr clientInfo = Config::instance().getClientInfo(connection->macAddress, true);
+		ClientInfoPtr clientInfo = Config::instance().getClientInfo(connection->macAddress, helloMsg.getInstance());
 		if (clientInfo == nullptr)
 		{
-			logE << "could not get client info for MAC: " << connection->macAddress << "\n";
-		}
-		else
-		{
-			logD << "request kServerSettings\n";
-			msg::ServerSettings serverSettings;
-			serverSettings.setVolume(clientInfo->config.volume.percent);
-			serverSettings.setMuted(clientInfo->config.volume.muted);
-			serverSettings.setLatency(clientInfo->config.latency);
-			serverSettings.setBufferMs(settings_.bufferMs);
-			serverSettings.refersTo = helloMsg.id;
-			connection->send(&serverSettings);
+			if ((clientInfo = Config::instance().addClientInfo(connection->macAddress, helloMsg.getInstance()) == nullptr))
+			{
+				logE << "could not get client info for MAC: " << connection->macAddress << "\n";
+				return;
+			}
 		}
 
-		ClientInfoPtr client = Config::instance().getClientInfo(connection->macAddress);
+		logD << "request kServerSettings\n";
+		msg::ServerSettings serverSettings;
+		serverSettings.setVolume(clientInfo->config.volume.percent);
+		serverSettings.setMuted(clientInfo->config.volume.muted);
+		serverSettings.setLatency(clientInfo->config.latency);
+		serverSettings.setBufferMs(settings_.bufferMs);
+		serverSettings.refersTo = helloMsg.id;
+		connection->send(&serverSettings);
+
 		client->host.ip = connection->getIP();
 		client->host.name = helloMsg.getHostName();
 		client->host.os = helloMsg.getOS();

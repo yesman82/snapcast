@@ -112,7 +112,7 @@ struct Host
 
 struct ClientConfig
 {
-	ClientConfig() : name(""), volume(100), latency(0), streamId("")
+	ClientConfig() : name(""), volume(100), latency(0), streamId(""), instance(1)
 	{
 	}
 
@@ -122,6 +122,7 @@ struct ClientConfig
 		volume.fromJson(j["volume"]);
 		latency = jGet<int32_t>(j, "latency", 0);
 		streamId = trim_copy(jGet<std::string>(j, "stream", ""));
+		instance = jGet<size_t>(j, "instance", 1);
 	}
 
 	json toJson()
@@ -131,6 +132,7 @@ struct ClientConfig
 		j["volume"] = volume.toJson();
 		j["latency"] = latency;
 		j["stream"] = trim_copy(streamId);
+		j["instance"] = instance;
 		return j;
 	}
 
@@ -138,6 +140,7 @@ struct ClientConfig
 	Volume volume;
 	int32_t latency;
 	std::string streamId;
+	size_t instance;
 };
 
 
@@ -207,7 +210,7 @@ struct Snapserver : public Snapcast
 
 struct ClientInfo
 {
-	ClientInfo(const std::string& _macAddress = "") : host(_macAddress), connected(false)
+	ClientInfo(const std::string& _macAddress = "", size_t instance = 1) : host(_macAddress), connected(false)
 	{
 		lastSeen.tv_sec = 0;
 		lastSeen.tv_usec = 0;
@@ -219,7 +222,7 @@ struct ClientInfo
 		{
 			host.fromJson(j["host"]);
 		}
-		else
+		else /// for legacy clients
 		{
 			host.ip = jGet<std::string>(j, "IP", "");
 			host.mac = jGet<std::string>(j, "MAC", "");
@@ -228,14 +231,14 @@ struct ClientInfo
 
 		if (j.count("snapclient"))
 			snapclient.fromJson(j["snapclient"]);
-		else
+		else /// for legacy clients
 			snapclient.version = jGet<std::string>(j, "version", "");
 
 		if (j.count("config"))
 		{
 			config.fromJson(j["config"]);
 		}
-		else
+		else /// for legacy clients
 		{
 			config.name = trim_copy(jGet<std::string>(j, "name", ""));
 			config.volume.fromJson(j["volume"]);
@@ -279,7 +282,8 @@ public:
 		return instance_;
 	}
 
-	ClientInfoPtr getClientInfo(const std::string& mac, bool add = true);
+	ClientInfoPtr getClientInfo(const std::string& macAddress, size_t instance) const;
+	ClientInfoPtr addClientInfo(const std::string& macAddress, size_t instance);
 	void remove(ClientInfoPtr client);
 
 	std::vector<ClientInfoPtr> clients;
