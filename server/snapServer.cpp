@@ -29,7 +29,9 @@
 #include "message/message.h"
 #include "encoder/encoderFactory.h"
 #include "streamServer.h"
-#include "publishAvahi.h"
+#if defined(HAS_AVAHI) || defined(HAS_BONJOUR)
+#include "publishZeroConf/publishmDNS.h"
+#endif
 #include "config.h"
 #include "common/log.h"
 
@@ -43,6 +45,9 @@ using namespace popl;
 
 int main(int argc, char* argv[])
 {
+#ifdef MACOS
+#pragma message "Warning: the macOS support is experimental and might not be maintained"
+#endif
 	try
 	{
 		StreamServerSettings settings;
@@ -56,7 +61,7 @@ int main(int argc, char* argv[])
 		Value<string> streamValue("s", "stream", "URI of the PCM input stream.\nFormat: TYPE://host/path?name=NAME\n[&codec=CODEC]\n[&sampleformat=SAMPLEFORMAT]", pcmStream, &pcmStream);
 
 		Value<string> sampleFormatValue("", "sampleformat", "Default sample format", settings.sampleFormat);
-		Value<string> codecValue("", "codec", "Default transport codec\n(flac|ogg|pcm)[:options]\nType codec:? to get codec specific options", settings.codec, &settings.codec);
+		Value<string> codecValue("c", "codec", "Default transport codec\n(flac|ogg|pcm)[:options]\nType codec:? to get codec specific options", settings.codec, &settings.codec);
 		Value<size_t> streamBufferValue("", "streamBuffer", "Default stream read buffer [ms]", settings.streamReadMs, &settings.streamReadMs);
 
 		Value<int> bufferValue("b", "buffer", "Buffer [ms]", settings.bufferMs, &settings.bufferMs);
@@ -142,12 +147,10 @@ int main(int argc, char* argv[])
 				setpriority(PRIO_PROCESS, 0, processPriority);
 			logS(kLogNotice) << "daemon started" << std::endl;
 		}
-
-		PublishAvahi publishAvahi("Snapcast");
-		std::vector<AvahiService> services;
-		services.push_back(AvahiService("_snapcast._tcp", settings.port));
-		services.push_back(AvahiService("_snapcast-jsonrpc._tcp", settings.controlPort));
-		publishAvahi.publish(services);
+#if defined(HAS_AVAHI) || defined(HAS_BONJOUR)
+		PublishZeroConf publishZeroConfg("Snapcast");
+		publishZeroConfg.publish({mDNSService("_snapcast._tcp", settings.port), mDNSService("_snapcast-jsonrpc._tcp", settings.controlPort)});
+#endif
 
 		if (settings.bufferMs < 400)
 			settings.bufferMs = 400;
@@ -180,8 +183,4 @@ int main(int argc, char* argv[])
 	daemonShutdown();
 	return 0;
 }
-
-
-
-
 

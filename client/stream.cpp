@@ -67,6 +67,7 @@ void Stream::clearChunks()
 {
 	while (chunks_.size() > 0)
 		chunks_.pop();
+	resetBuffers();
 }
 
 
@@ -93,11 +94,11 @@ bool Stream::waitForChunk(size_t ms) const
 
 
 
-cs::time_point_hrc Stream::getSilentPlayerChunk(void* outputBuffer, unsigned long framesPerBuffer)
+cs::time_point_clk Stream::getSilentPlayerChunk(void* outputBuffer, unsigned long framesPerBuffer)
 {
 	if (!chunk_)
 		chunk_ = chunks_.pop();
-	cs::time_point_hrc tp = chunk_->start();
+	cs::time_point_clk tp = chunk_->start();
 	memset(outputBuffer, 0, framesPerBuffer * format_.frameSize);
 	return tp;
 }
@@ -121,7 +122,7 @@ time_point_ms Stream::seekTo(const time_point_ms& to)
 */
 
 /*
-time_point_hrc Stream::seek(long ms)
+time_point_clk Stream::seek(long ms)
 {
 	if (!chunk)
 		chunk_ = chunks_.pop();
@@ -141,12 +142,12 @@ time_point_hrc Stream::seek(long ms)
 */
 
 
-cs::time_point_hrc Stream::getNextPlayerChunk(void* outputBuffer, const cs::usec& timeout, unsigned long framesPerBuffer)
+cs::time_point_clk Stream::getNextPlayerChunk(void* outputBuffer, const cs::usec& timeout, unsigned long framesPerBuffer)
 {
 	if (!chunk_ && !chunks_.try_pop(chunk_, timeout))
 		throw 0;
 
-	cs::time_point_hrc tp = chunk_->start();
+	cs::time_point_clk tp = chunk_->start();
 	char* buffer = (char*)outputBuffer;
 	unsigned long read = 0;
 	while (read < framesPerBuffer)
@@ -159,18 +160,18 @@ cs::time_point_hrc Stream::getNextPlayerChunk(void* outputBuffer, const cs::usec
 }
 
 
-cs::time_point_hrc Stream::getNextPlayerChunk(void* outputBuffer, const cs::usec& timeout, unsigned long framesPerBuffer, long framesCorrection)
+cs::time_point_clk Stream::getNextPlayerChunk(void* outputBuffer, const cs::usec& timeout, unsigned long framesPerBuffer, long framesCorrection)
 {
 	if (framesCorrection == 0)
 		return getNextPlayerChunk(outputBuffer, timeout, framesPerBuffer);
 
 	long toRead = framesPerBuffer + framesCorrection;
 	char* buffer = (char*)malloc(toRead * format_.frameSize);
-	cs::time_point_hrc tp = getNextPlayerChunk(buffer, timeout, toRead);
+	cs::time_point_clk tp = getNextPlayerChunk(buffer, timeout, toRead);
 
 	float factor = (float)toRead / framesPerBuffer;//(float)(framesPerBuffer*channels_);
-	if (abs(framesCorrection) > 1)
-		logO << "correction: " << framesCorrection << ", factor: " << factor << "\n";
+//	if (abs(framesCorrection) > 1)
+//		logO << "correction: " << framesCorrection << ", factor: " << factor << "\n";
 	float idx = 0;
 	for (size_t n=0; n<framesPerBuffer; ++n)
 	{
@@ -342,7 +343,13 @@ bool Stream::getPlayerChunk(void* outputBuffer, const cs::usec& outputBufferDacT
 
 		if (sleep_.count() != 0)
 		{
-			logO << "Sleep " << cs::duration<cs::msec>(sleep_) << ", age: " << cs::duration<cs::msec>(age) << ", bufferDuration: " << cs::duration<cs::msec>(bufferDuration) << "\n";
+			static int lastAge(0);
+			int msAge = cs::duration<cs::msec>(age);
+			if (lastAge != msAge) 
+			{
+				lastAge = msAge;
+				logO << "Sleep " << cs::duration<cs::msec>(sleep_) << ", age: " << msAge << ", bufferDuration: " << cs::duration<cs::msec>(bufferDuration) << "\n";
+			}
 		}
 		else if (shortBuffer_.full())
 		{
@@ -364,7 +371,7 @@ bool Stream::getPlayerChunk(void* outputBuffer, const cs::usec& outputBufferDacT
 			logO << "Chunk: " << age.count()/100 << "\t" << miniBuffer_.median()/100 << "\t" << shortMedian_/100 << "\t" << median_/100 << "\t" << buffer_.size() << "\t" << cs::duration<cs::msec>(outputBufferDacTime) << "\n";
 //			logO << "Chunk: " << age.count()/1000 << "\t" << miniBuffer_.median()/1000 << "\t" << shortMedian_/1000 << "\t" << median_/1000 << "\t" << buffer_.size() << "\t" << cs::duration<cs::msec>(outputBufferDacTime) << "\n";
 		}
-		return true;
+		return (abs(cs::duration<cs::msec>(age)) < 500);
 	}
 	catch(int e)
 	{

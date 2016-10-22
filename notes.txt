@@ -83,3 +83,15 @@ https://en.wikipedia.org/wiki/Uniform_Resource_Identifier
 -HiRes Audio
 -Android auto start
 -pipe creation mode: `-s pipe:///tmp/snapfifo?mode=[read|create]`
+
+
+*Dependencies
+libavahi-client3
+libflac8
+libogg0
+libvorbis0a
+libvorbisenc2
+
+
+*Mac
+brew install autoconf automake pkg-config libtool
